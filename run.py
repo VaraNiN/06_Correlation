@@ -94,7 +94,6 @@ def fetch_yearly_inflation():   #Source; https://www.usinflationcalculator.com/i
 
     try:
         # Load data from inflation.csv
-        print("Loading inflation data from inflation.csv...")
         if not os.path.exists(CSV_FILE):
             raise FileNotFoundError(f"Inflation data file not found: {CSV_FILE}")
 
@@ -363,7 +362,7 @@ def main():
         else:
             inflation_data = None
 
-        print(f"\nCalculating pairwise correlation with inflation adjustment: {SUBTRACT_INFLATION_FLAG}")
+        print(f"\n\n\n\nInflation adjustment: {SUBTRACT_INFLATION_FLAG}")
 
         # Calculate and print daily correlation
         print("\nDaily Pairwise Correlation Matrix:")
