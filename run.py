@@ -254,6 +254,9 @@ def calculate_pairwise_correlation(ticker_label_map, frequency="D", inflation_da
                     # Resample the data to the specified frequency
                     df = df.resample(frequency).mean()
 
+                    # Calculate gains relative to the previous date
+                    df = df.pct_change(fill_method=None).dropna()  # Calculate percentage change and drop NaN values
+
                     # Calculate correlation
                     correlation = df.corr().iloc[0, 1]  # Correlation between the two columns
                     pairwise_correlation.loc[label1, label2] = correlation
@@ -355,7 +358,7 @@ def main():
     plt.tight_layout()
     plt.show()
 
-    for SUBTRACT_INFLATION_FLAG in [True, False]:
+    for SUBTRACT_INFLATION_FLAG in [False, True]:
 
         if SUBTRACT_INFLATION_FLAG:
             inflation_data = fetch_yearly_inflation()
@@ -372,21 +375,21 @@ def main():
         """ # Calculate and print weekly correlation
         print("\nWeekly Pairwise Correlation Matrix:")
         weekly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="W", inflation_data=inflation_data)
-        print(weekly_correlation)
+        print(weekly_correlation) """
 
         # Calculate and print monthly correlation
         print("\nMonthly Pairwise Correlation Matrix:")
-        monthly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="M", inflation_data=inflation_data)
+        monthly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="ME", inflation_data=inflation_data)
         print(monthly_correlation)
 
-        # Calculate and print 6-month correlation
+        """ # Calculate and print 6-month correlation
         print("\n6-Month Pairwise Correlation Matrix:")
         six_month_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="6M", inflation_data=inflation_data)
         print(six_month_correlation) """
 
         # Calculate and print yearly correlation
         print("\nYearly Pairwise Correlation Matrix:")
-        year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="Y", inflation_data=inflation_data)
+        year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="YE", inflation_data=inflation_data)
         print(year_correlation)
 
 
