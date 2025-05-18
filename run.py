@@ -12,7 +12,8 @@ ticker_label_map = {
     "^GSPC": "S&P 500",
     "URTH": "MSCI World",
     "GC=F": "Gold",
-    "BTC-USD": "Bitcoin"
+    "BTC-USD": "Bitcoin",
+    "VWCE": "FTSE All-World"
 }
 
 def get_asset_stats(ticker):
@@ -46,10 +47,10 @@ def get_asset_stats(ticker):
         print(f"Loading historical data for {ticker} from Yahoo Finance")
         asset = yf.Ticker(ticker)
 
-        # Check if the currency is USD
+        """ # Check if the currency is USD
         asset_info = asset.info
         if "currency" in asset_info and asset_info["currency"] != "USD":
-            raise ValueError(f"Error: The currency for {ticker} is {asset_info['currency']}, not USD.")
+            raise ValueError(f"Error: The currency for {ticker} is {asset_info['currency']}, not USD.") """
 
         hist_data = asset.history(period="max")  # Fetch maximum available historical data
         if not hist_data.empty:
