@@ -246,13 +246,10 @@ def main():
             df["Date"] = pd.to_datetime(df["Date"])  # Ensure the Date column is a datetime object
             df = df.set_index("Date")  # Set the Date column as the index
 
-            # Calculate percentage change (returns) and drop NaN values
-            df = df.pct_change(fill_method=None).dropna()
-
             # Compute auto-correlation for daily, monthly, and yearly intervals
-            daily_autocorr = df["Close"].autocorr(lag=1)
-            monthly_autocorr = df["Close"].resample("M").mean().autocorr(lag=1)
-            yearly_autocorr = df["Close"].resample("Y").mean().autocorr(lag=1)
+            daily_autocorr = df["Close"].pct_change(fill_method=None).dropna().autocorr(lag=1)
+            monthly_autocorr = df["Close"].resample("M").mean().pct_change(fill_method=None).dropna().autocorr(lag=1)
+            yearly_autocorr = df["Close"].resample("Y").mean().pct_change(fill_method=None).dropna().autocorr(lag=1)
 
             print(f"{label} ({ticker}):")
             print(f"  Daily Auto-Correlation: {daily_autocorr:.4f}")
