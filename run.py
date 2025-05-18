@@ -95,9 +95,6 @@ def calculate_pairwise_correlation(ticker_label_map, frequency="D"):
     for ticker, label in ticker_label_map.items():
         history = get_asset_stats(ticker)
         if history:
-            # Determine the earliest date in the historical data
-            earliest_date = min(datetime.fromisoformat(record["timestamp"]).date() for record in history)
-
             # Extract dates and store them in a set
             dates = {datetime.fromisoformat(record["timestamp"]).date() for record in history}
             date_sets[label] = dates
@@ -113,8 +110,6 @@ def calculate_pairwise_correlation(ticker_label_map, frequency="D"):
     # Calculate pairwise correlation
     labels = list(ticker_label_map.values())
     pairwise_correlation = pd.DataFrame(index=labels, columns=labels, dtype=float)
-
-####
 
     for label1 in labels:
         for label2 in labels:
@@ -193,13 +188,13 @@ def main():
         ]
 
     # Plot the data
-    plt.figure(figsize=(14, 7))
+    plt.figure(figsize=(10, 6))
 
-    # Plot
-    plt.subplot(1, 2, 1)
+    # Plot relative changes for all tickers
     for label, changes in aligned_changes.items():
         plt.plot(common_dates, changes, label=label)
-    plt.title("Relative Change")
+
+    plt.title("Relative Change Over Time")
     plt.xlabel("Date")
     plt.ylabel("Relative Change (Log Scale)")
     plt.yscale("log")  # Set y-axis to logarithmic scale
@@ -209,39 +204,20 @@ def main():
     plt.tight_layout()
     plt.show()
 
-    for SUBTRACT_INFLATION_FLAG in [True, False]:
+    # Calculate and print daily correlation
+    print("\nDaily Pairwise Correlation Matrix:")
+    daily_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="D")
+    print(daily_correlation)
 
-        if SUBTRACT_INFLATION_FLAG:
-            inflation_data = fetch_yearly_inflation()
-        else:
-            inflation_data = None
+    # Calculate and print monthly correlation
+    print("\nMonthly Pairwise Correlation Matrix:")
+    monthly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="M")
+    print(monthly_correlation)
 
-        print(f"\n\n\n\nInflation adjustment: {SUBTRACT_INFLATION_FLAG}")
-
-        # Calculate and print daily correlation
-        print("\nDaily Pairwise Correlation Matrix:")
-        daily_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="D", inflation_data=inflation_data)
-        print(daily_correlation)
-
-        """ # Calculate and print weekly correlation
-        print("\nWeekly Pairwise Correlation Matrix:")
-        weekly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="W", inflation_data=inflation_data)
-        print(weekly_correlation)
-
-        # Calculate and print monthly correlation
-        print("\nMonthly Pairwise Correlation Matrix:")
-        monthly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="M", inflation_data=inflation_data)
-        print(monthly_correlation)
-
-        # Calculate and print 6-month correlation
-        print("\n6-Month Pairwise Correlation Matrix:")
-        six_month_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="6M", inflation_data=inflation_data)
-        print(six_month_correlation) """
-
-        # Calculate and print yearly correlation
-        print("\nYearly Pairwise Correlation Matrix:")
-        year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="Y", inflation_data=inflation_data)
-        print(year_correlation)
+    # Calculate and print yearly correlation
+    print("\nYearly Pairwise Correlation Matrix:")
+    year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="Y")
+    print(year_correlation)
 
 
 if __name__ == "__main__":
