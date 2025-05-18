@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 CACHE_DIR = "asset_stats_cache"  # Directory to store individual files
+PLOT = False
 
 ticker_label_map = {
     "^GSPC": "S&P 500",
@@ -187,22 +188,23 @@ def main():
             for date in common_dates
         ]
 
-    # Plot the data
-    plt.figure(figsize=(10, 6))
+    if PLOT:
+        # Plot the data
+        plt.figure(figsize=(10, 6))
 
-    # Plot relative changes for all tickers
-    for label, changes in aligned_changes.items():
-        plt.plot(common_dates, changes, label=label)
+        # Plot relative changes for all tickers
+        for label, changes in aligned_changes.items():
+            plt.plot(common_dates, changes, label=label)
 
-    plt.title("Relative Change Over Time")
-    plt.xlabel("Date")
-    plt.ylabel("Relative Change (Log Scale)")
-    plt.yscale("log")  # Set y-axis to logarithmic scale
-    plt.legend()
-    plt.xticks(rotation=45)
+        plt.title("Relative Change Over Time")
+        plt.xlabel("Date")
+        plt.ylabel("Relative Change (Log Scale)")
+        plt.yscale("log")  # Set y-axis to logarithmic scale
+        plt.legend()
+        plt.xticks(rotation=45)
 
-    plt.tight_layout()
-    plt.show()
+        plt.tight_layout()
+        plt.show()
 
     # Calculate and print daily correlation
     print("\nDaily Pairwise Correlation Matrix:")
