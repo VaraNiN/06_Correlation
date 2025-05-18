@@ -10,10 +10,9 @@ PLOT = False
 
 ticker_label_map = {
     "^GSPC": "S&P 500",
-    "URTH": "MSCI World",
+    "TLT": "20yr bonds",
     "GC=F": "Gold",
     "BTC-USD": "Bitcoin",
-    "VWCE": "FTSE All-World"
 }
 
 def get_asset_stats(ticker):
@@ -46,11 +45,6 @@ def get_asset_stats(ticker):
         # Fetch historical pricing data if cache is expired or doesn't exist
         print(f"Loading historical data for {ticker} from Yahoo Finance")
         asset = yf.Ticker(ticker)
-
-        """ # Check if the currency is USD
-        asset_info = asset.info
-        if "currency" in asset_info and asset_info["currency"] != "USD":
-            raise ValueError(f"Error: The currency for {ticker} is {asset_info['currency']}, not USD.") """
 
         hist_data = asset.history(period="max")  # Fetch maximum available historical data
         if not hist_data.empty:
@@ -221,6 +215,33 @@ def main():
     print("\nYearly Pairwise Correlation Matrix:")
     year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="Y")
     print(year_correlation)
+
+    # Compute and print auto-correlation for each ticker
+    print("\nAuto-Correlation:")
+    for ticker, label in ticker_label_map.items():
+        history = get_asset_stats(ticker)
+        if history:
+            # Extract closing prices
+            dates = [datetime.fromisoformat(record["timestamp"]).date() for record in history]
+            prices = [record["data"]["Close"] for record in history]
+
+            # Create a DataFrame for resampling
+            df = pd.DataFrame({"Date": dates, "Close": prices})
+            df["Date"] = pd.to_datetime(df["Date"])  # Ensure the Date column is a datetime object
+            df = df.set_index("Date")  # Set the Date column as the index
+
+            # Calculate percentage change (returns) and drop NaN values
+            df = df.pct_change(fill_method=None).dropna()
+
+            # Compute auto-correlation for daily, monthly, and yearly intervals
+            daily_autocorr = df["Close"].autocorr(lag=1)
+            monthly_autocorr = df["Close"].resample("M").mean().autocorr(lag=1)
+            yearly_autocorr = df["Close"].resample("Y").mean().autocorr(lag=1)
+
+            print(f"{label} ({ticker}):")
+            print(f"  Daily Auto-Correlation: {daily_autocorr:.4f}")
+            print(f"  Monthly Auto-Correlation: {monthly_autocorr:.4f}")
+            print(f"  Yearly Auto-Correlation: {yearly_autocorr:.4f}")
 
 
 if __name__ == "__main__":
