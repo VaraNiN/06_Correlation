@@ -6,14 +6,18 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 CACHE_DIR = "asset_stats_cache"  # Directory to store individual files
+CACHE_MAX_AGE = 1   # Maximum allowed age of cache in days
 PLOT = False
 
 ticker_label_map = {
     "^GSPC": "S&P 500",
+    #"URTH": "MSCI World",
     "TLT": "20yr bonds",
     "GC=F": "Gold",
     "BTC-USD": "Bitcoin",
 }
+
+
 
 def get_asset_stats(ticker):
     """
@@ -36,11 +40,24 @@ def get_asset_stats(ticker):
                 with open(cache_file, "r") as f:
                     cached_data = json.load(f)
                 history = cached_data.get("history", [])
-                return history
+
+                # Check the age of the youngest entry in the cached data
+                if history:
+                    youngest_entry_date = datetime.fromisoformat(history[-1]["timestamp"]).date()
+
+                    # Determine the latest bank day
+                    today = pd.Timestamp.now().normalize()
+                    latest_bank_day = pd.bdate_range(end=today, periods=1)[0].date()
+
+                    # Calculate the age in days relative to the latest bank day
+                    age_in_days = (latest_bank_day - youngest_entry_date).days
+                    if age_in_days <= CACHE_MAX_AGE:
+                        return history
+                    else:
+                        print(f"Cached data for {ticker} is older than {CACHE_MAX_AGE} days: {age_in_days} days. Fetching fresh data.")
             except json.JSONDecodeError:
                 print(f"Error decoding cache file {cache_file}. Re-fetching.")
                 os.remove(cache_file)  # Delete the corrupted file
-
 
         # Fetch historical pricing data if cache is expired or doesn't exist
         print(f"Loading historical data for {ticker} from Yahoo Finance")
@@ -48,7 +65,6 @@ def get_asset_stats(ticker):
 
         hist_data = asset.history(period="max")  # Fetch maximum available historical data
         if not hist_data.empty:
-
             # Convert historical data to a list of dictionaries
             history = [
                 {"timestamp": str(index), "data": row.to_dict()}
@@ -69,7 +85,7 @@ def get_asset_stats(ticker):
     except Exception as e:
         print(f"Error fetching historical data for {ticker}: {e}")
         return None
-
+    
 
 
 def calculate_pairwise_correlation(ticker_label_map, frequency="D"):
