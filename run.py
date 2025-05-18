@@ -6,17 +6,15 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 CACHE_DIR = "asset_stats_cache"  # Directory to store individual files
-END_DATE = 2024  # End date for inflation data
+PLOT = False
 
 ticker_label_map = {
     "^GSPC": "S&P 500",
     "URTH": "MSCI World",
     "GC=F": "Gold",
     "BTC-USD": "Bitcoin",
-    "VWCE.DE": "Gral"
+    "VWCE": "FTSE All-World"
 }
-
-currency = None
 
 def get_asset_stats(ticker):
     """
@@ -39,11 +37,6 @@ def get_asset_stats(ticker):
                 with open(cache_file, "r") as f:
                     cached_data = json.load(f)
                 history = cached_data.get("history", [])
-                # Filter cached data up to END_DATE
-                history = [
-                    record for record in history
-                    if datetime.fromisoformat(record["timestamp"]).date() <= datetime(END_DATE, 12, 31).date()
-                ]
                 return history
             except json.JSONDecodeError:
                 print(f"Error decoding cache file {cache_file}. Re-fetching.")
@@ -54,17 +47,13 @@ def get_asset_stats(ticker):
         print(f"Loading historical data for {ticker} from Yahoo Finance")
         asset = yf.Ticker(ticker)
 
-        # Check if the currency is USD
+        """ # Check if the currency is USD
         asset_info = asset.info
-        if currency is None:
-            currency = asset_info["currency"]
-        elif asset_info["currency"] != currency:
-            raise ValueError(f"Error: The currencies do not match: {asset_info['currency']} {currency}.")
+        if "currency" in asset_info and asset_info["currency"] != "USD":
+            raise ValueError(f"Error: The currency for {ticker} is {asset_info['currency']}, not USD.") """
 
         hist_data = asset.history(period="max")  # Fetch maximum available historical data
         if not hist_data.empty:
-            # Filter data up to END_DATE
-            hist_data = hist_data[hist_data.index <= f"{END_DATE}-12-31"]
 
             # Convert historical data to a list of dictionaries
             history = [
@@ -88,15 +77,15 @@ def get_asset_stats(ticker):
         return None
 
 
-def calculate_pairwise_correlation(ticker_label_map, frequency="D", inflation_data=None):
+
+def calculate_pairwise_correlation(ticker_label_map, frequency="D"):
     """
     Calculates the pairwise correlation between each pair of ticker symbols using the longest possible time available
-    and resampling to the specified frequency. Uses inflation-adjusted values if SUBTRACT_INFLATION_FLAG is True.
+    and resampling to the specified frequency.
 
     Args:
         ticker_label_map (dict): A dictionary mapping ticker symbols to their labels.
         frequency (str): The frequency for resampling the data ("D" for daily, "W" for weekly, "M" for monthly).
-        inflation_data (dict): A dictionary mapping dates to cumulative inflation factors.
 
     Returns:
         pd.DataFrame: A DataFrame containing the pairwise correlation matrix with labels as row and column names.
@@ -108,14 +97,6 @@ def calculate_pairwise_correlation(ticker_label_map, frequency="D", inflation_da
     for ticker, label in ticker_label_map.items():
         history = get_asset_stats(ticker)
         if history:
-            # Determine the earliest date in the historical data
-            earliest_date = min(datetime.fromisoformat(record["timestamp"]).date() for record in history)
-
-            # Precompute inflation factors
-            if inflation_data is not None:
-                inflation_factors = precompute_inflation_factors(inflation_data, earliest_date)
-                history = adjust_for_inflation(history, inflation_factors)
-
             # Extract dates and store them in a set
             dates = {datetime.fromisoformat(record["timestamp"]).date() for record in history}
             date_sets[label] = dates
@@ -123,7 +104,7 @@ def calculate_pairwise_correlation(ticker_label_map, frequency="D", inflation_da
             # Store the full history temporarily
             closing_prices[label] = {
                 datetime.fromisoformat(record["timestamp"]).date(): (
-                    record["data"].get("Inflation Adjusted Close", record["data"]["Close"])  # Use "Close" if "Inflation Adjusted Close" is missing
+                    record["data"].get("Close")
                 )
                 for record in history
             }
@@ -169,15 +150,10 @@ def main():
     """
     Fetches and prints historical closing prices for the S&P 500, MSCI World, Gold, and Bitcoin,
     and calculates the pairwise correlation between them for daily, weekly, monthly, and 6-month data.
-    Also plots the relative change to the start value for all tickers with and without inflation adjustment.
     """
 
-    # Fetch yearly inflation data
-    inflation_data = fetch_yearly_inflation()
-
     # Prepare data for plotting
-    relative_changes_with_inflation = {}
-    relative_changes_without_inflation = {}
+    relative_changes = {}
     all_dates = {}
     global_earliest_date = None
 
@@ -192,99 +168,59 @@ def main():
             if global_earliest_date is None or earliest_date > global_earliest_date:
                 global_earliest_date = earliest_date
 
-            # Precompute inflation factors
-            inflation_factors = precompute_inflation_factors(inflation_data, earliest_date)
-            adjusted_history = adjust_for_inflation(history, inflation_factors)
-
             # Extract closing prices
             dates = [datetime.fromisoformat(record["timestamp"]).date() for record in history]
             prices = [record["data"]["Close"] for record in history]
-            adjusted_prices = [record["data"].get("Inflation Adjusted Close", record["data"]["Close"]) for record in adjusted_history]
-
-            # Filter data up to END_DATE
-            filtered_dates = [date for date in dates if date <= datetime(END_DATE, 12, 31).date()]
-            filtered_prices = prices[:len(filtered_dates)]
-            filtered_adjusted_prices = adjusted_prices[:len(filtered_dates)]
 
             # Store dates and prices for alignment
-            all_dates[label] = set(filtered_dates)
-            relative_changes_without_inflation[label] = dict(zip(filtered_dates, filtered_prices))
-            relative_changes_with_inflation[label] = dict(zip(filtered_dates, filtered_adjusted_prices))
+            all_dates[label] = set(dates)
+            relative_changes[label] = dict(zip(dates, prices))
 
     # Ensure global_earliest_date is within the filtered dates
     global_earliest_date = max(global_earliest_date, min(min(dates) for dates in all_dates.values()))
 
     # Align data to the global earliest date and filter up to END_DATE
-    aligned_changes_without_inflation = {}
-    aligned_changes_with_inflation = {}
+    aligned_changes = {}
     common_dates = sorted([date for date in set.intersection(*all_dates.values()) if date >= global_earliest_date])
 
     for label in ticker_label_map.values():
-        aligned_changes_without_inflation[label] = [
-            relative_changes_without_inflation[label][date] / relative_changes_without_inflation[label][global_earliest_date]
-            for date in common_dates
-        ]
-        aligned_changes_with_inflation[label] = [
-            relative_changes_with_inflation[label][date] / relative_changes_with_inflation[label][global_earliest_date]
+        aligned_changes[label] = [
+            relative_changes[label][date] / relative_changes[label][global_earliest_date]
             for date in common_dates
         ]
 
-    # Plot the data
-    plt.figure(figsize=(14, 7))
+    if PLOT:
+        # Plot the data
+        plt.figure(figsize=(10, 6))
 
-    # Plot without inflation adjustment
-    plt.subplot(1, 2, 1)
-    for label, changes in aligned_changes_without_inflation.items():
-        plt.plot(common_dates, changes, label=label)
-    plt.title("Relative Change Without Inflation Adjustment")
-    plt.xlabel("Date")
-    plt.ylabel("Relative Change (Log Scale)")
-    plt.yscale("log")  # Set y-axis to logarithmic scale
-    plt.legend()
-    plt.xticks(rotation=45)
+        # Plot relative changes for all tickers
+        for label, changes in aligned_changes.items():
+            plt.plot(common_dates, changes, label=label)
 
-    # Plot with inflation adjustment
-    plt.subplot(1, 2, 2)
-    for label, changes in aligned_changes_with_inflation.items():
-        plt.plot(common_dates, changes, label=label)
-    plt.title("Relative Change With Inflation Adjustment")
-    plt.xlabel("Date")
-    plt.ylabel("Relative Change (Log Scale)")
-    plt.yscale("log")  # Set y-axis to logarithmic scale
-    plt.legend()
-    plt.xticks(rotation=45)
+        plt.title("Relative Change Over Time")
+        plt.xlabel("Date")
+        plt.ylabel("Relative Change (Log Scale)")
+        plt.yscale("log")  # Set y-axis to logarithmic scale
+        plt.legend()
+        plt.xticks(rotation=45)
 
-    plt.tight_layout()
-    plt.show()
+        plt.tight_layout()
+        plt.show()
 
-    for SUBTRACT_INFLATION_FLAG in [False, True]:
+    # Calculate and print daily correlation
+    print("\nDaily Pairwise Correlation Matrix:")
+    daily_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="D")
+    print(daily_correlation)
 
-        if SUBTRACT_INFLATION_FLAG:
-            inflation_data = fetch_yearly_inflation()
-        else:
-            inflation_data = None
+    # Calculate and print monthly correlation
+    print("\nMonthly Pairwise Correlation Matrix:")
+    monthly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="M")
+    print(monthly_correlation)
 
-        print(f"\n\n\n\nInflation adjustment: {SUBTRACT_INFLATION_FLAG}")
-
-        # Calculate and print daily correlation
-        print("\nDaily Pairwise Correlation Matrix:")
-        daily_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="D", inflation_data=inflation_data)
-        print(daily_correlation)
-        
-        try:
-            monthly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="ME", inflation_data=inflation_data)
-            year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="YE", inflation_data=inflation_data)
-        except:
-            monthly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="M", inflation_data=inflation_data)
-            year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="Y", inflation_data=inflation_data)
-
-        # Calculate and print monthly correlation
-        print("\nMonthly Pairwise Correlation Matrix:")
-        print(monthly_correlation)
-
-        # Calculate and print yearly correlation
-        print("\nYearly Pairwise Correlation Matrix:")
-        print(year_correlation)
+    # Calculate and print yearly correlation
+    print("\nYearly Pairwise Correlation Matrix:")
+    year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="Y")
+    print(year_correlation)
 
 
 if __name__ == "__main__":
