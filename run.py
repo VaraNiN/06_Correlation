@@ -371,25 +371,20 @@ def main():
         print("\nDaily Pairwise Correlation Matrix:")
         daily_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="D", inflation_data=inflation_data)
         print(daily_correlation)
-
-        """ # Calculate and print weekly correlation
-        print("\nWeekly Pairwise Correlation Matrix:")
-        weekly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="W", inflation_data=inflation_data)
-        print(weekly_correlation) """
+        
+        try:
+            monthly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="ME", inflation_data=inflation_data)
+            year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="YE", inflation_data=inflation_data)
+        except:
+            monthly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="M", inflation_data=inflation_data)
+            year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="Y", inflation_data=inflation_data)
 
         # Calculate and print monthly correlation
         print("\nMonthly Pairwise Correlation Matrix:")
-        monthly_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="ME", inflation_data=inflation_data)
         print(monthly_correlation)
-
-        """ # Calculate and print 6-month correlation
-        print("\n6-Month Pairwise Correlation Matrix:")
-        six_month_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="6M", inflation_data=inflation_data)
-        print(six_month_correlation) """
 
         # Calculate and print yearly correlation
         print("\nYearly Pairwise Correlation Matrix:")
-        year_correlation = calculate_pairwise_correlation(ticker_label_map, frequency="YE", inflation_data=inflation_data)
         print(year_correlation)
 
 
